@@ -1,0 +1,1 @@
+module.exports = html => [...html.matchAll(/meta\s+name=\"csrf\-token\"\s+content=\"?([^\"\/>]+)\"?\/?>/gi)][0][1];
