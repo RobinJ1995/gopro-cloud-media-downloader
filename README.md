@@ -13,3 +13,6 @@ Currently a work in progress.
 - [ ] Selectively downloading files. When the script is run, it will start downloading every single file from your GoPro media library. Hope you have enough disk space 😉
 - [ ] Resume on failure or when cancelled
 - [ ] Retry on failure
+
+## Known issues
+- [ ] Does not work if your GoPro account has 2 factor authentication enabled.

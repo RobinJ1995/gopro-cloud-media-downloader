@@ -10,6 +10,7 @@ const colouriseStrings = (params, colourisation) => params.map(param => {
 })
 
 module.exports = {
+	logSuccess: (...params) => console.info('✅'.bgGreen, ...colouriseStrings(params, x => x.green)),
 	logInfo: (...params) => console.info('ℹ️ '.bgGreen, ...colouriseStrings(params, x => x.brightCyan)),
 	logWarn: (...params) => console.warn('⚠️ '.bgYellow, ...colouriseStrings(params, x => x.red)),
 	logError: (...params) => console.error('⚠️ '.bgRed, ...colouriseStrings(params, x => x.bgRed.bold.white)),

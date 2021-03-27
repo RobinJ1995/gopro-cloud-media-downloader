@@ -1,7 +1,7 @@
 const fetch = require('fetch-cookie')(require('node-fetch'));
 const { checkHttpStatus, httpCheckParse, clone, pluralise, stripFields } = require('./utils');
 const findCsrfToken = require('./find_cstf_token');
-const { logInfo, logWarn, logError, logDebug, logUrl, prompt } = require('./logging');
+const { logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } = require('./logging');
 const Fs = require('fs');
 const Promise = require('bluebird');
 const { loadState, saveState } = require('./state');
@@ -73,6 +73,8 @@ fetch(logUrl(LOGIN_URL))
 			logError('Login failed. No access token found in response.', res);
 			process.exit(2);
 		}
+		
+		logSuccess('Login successful.');
 		
 		logInfo('Retrieving GoPro media library...');
 		return fetch(logUrl(getMediaPageUrl(1)), {
@@ -169,7 +171,7 @@ fetch(logUrl(LOGIN_URL))
 						});
 					})
 					.then(() => {
-						logInfo(`Download succeeded: ${filename}`);
+						logSuccess(`Download succeeded: ${filename}`);
 					})
 					.catch(err => {
 						logError(`Download of file ${filename} failed.`, err);
