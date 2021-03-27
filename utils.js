@@ -8,7 +8,27 @@ const checkHttpStatus = res => {
 
 const httpCheckParse = res => checkHttpStatus(res).json();
 
+const clone = x => JSON.parse(JSON.stringify(x));
+
+const pluralise = (word, arr) => {
+	if (arr.length === 1) {
+		return word;
+	}
+	
+	return `${word}s`;
+}
+
+const stripFields = (originalObj, fields = []) => {
+	const obj = clone(originalObj);
+	fields.forEach(field => delete obj[field]);
+	
+	return obj;
+}
+
 module.exports = {
 	checkHttpStatus,
-	httpCheckParse
+	httpCheckParse,
+	clone,
+	pluralise,
+	stripFields
 };

@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "bluebird": "^3.7.2",
+    "colors": "^1.4.0",
     "fetch-cookie": "^0.11.0",
     "node-fetch": "^2.6.1",
     "prompt-sync": "^4.2.0"

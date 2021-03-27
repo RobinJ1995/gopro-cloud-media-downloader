@@ -1,2 +1,7 @@
 .idea
 node_modules
+*.jpg
+*.JPG
+*.mp4
+*.MP4
+state.json
