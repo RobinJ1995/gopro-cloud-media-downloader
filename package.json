@@ -13,6 +13,7 @@
     "colors": "^1.4.0",
     "fetch-cookie": "^0.11.0",
     "node-fetch": "^2.6.1",
-    "prompt-sync": "^4.2.0"
+    "prompt-sync": "^4.2.0",
+    "recurse": "^3.0.2"
   }
 }

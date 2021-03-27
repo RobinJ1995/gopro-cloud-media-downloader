@@ -1,36 +1,16 @@
 const fetch = require('fetch-cookie')(require('node-fetch'));
-const { checkHttpStatus, httpCheckParse, clone, pluralise, stripFields } = require('./utils');
-const findCsrfToken = require('./find_cstf_token');
-const { logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } = require('./logging');
+const { checkHttpStatus, httpCheckParse, clone, pluralise, stripFields, getMediaPageUrl, getDownloadUrl } = require('./utils');
+const { welcome, logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } = require('./logging');
 const Fs = require('fs');
 const Promise = require('bluebird');
 const { loadState, saveState } = require('./state');
-
-
-const LOGIN_URL = 'https://gopro.com/login';
-const getMediaPageUrl = pageNum => `https://api.gopro.com/media/search?fields=camera_model,captured_at,content_title,content_type,created_at,gopro_user_id,gopro_media,file_size,height,fov,id,item_count,moments_count,on_public_profile,orientation,play_as,ready_to_edit,ready_to_view,resolution,source_duration,token,type,width&processing_states=pretranscoding,transcoding,failure,ready&order_by=captured_at&per_page=100&page=${pageNum}`;
-const getDownloadUrl = item => `https://api.gopro.com/media/${item.id}/download`;
+const { initLocalFolderScanRoutine } = require('./scan_local_folder');
+const { initLoginRoutine } = require('./login');
 
 
 const state = loadState();
-const runState = {
-	started: new Date()
-};
-state.runs = [
-	...state.runs,
-	runState
-];
 
-logInfo('Please provide your GoPro Cloud credentials');
-console.log('   ===========================================');
-const email = process.env.GOPRO_ACCOUNT_EMAIL || prompt('E-mail address: ');
-const password = process.env.GOPRO_ACCOUNT_PASSWORD || prompt('Password: ');
-console.log('   ===========================================');
-
-if (!email || !password) {
-	logError('Please provide a valid e-mail address and password.');
-	process.exit(1);
-}
+welcome();
 
 let accessToken; // Yes, I'm using a global mutable variable for this one.
 const getHeaders = () => ({
@@ -39,42 +19,15 @@ const getHeaders = () => ({
 	'Content-Type': 'application/json'
 });
 
-logInfo('Finding CSRF token...');
-fetch(logUrl(LOGIN_URL))
-	.then(checkHttpStatus)
-	.then(r => r.text())
-	.then(findCsrfToken)
-	.then(csrfToken => {
-		logDebug(`CSRF token: ${csrfToken}`);
-		logInfo('Logging in...');
-		return fetch(logUrl(LOGIN_URL), {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-CSRF-Token': csrfToken
-			},
-			body: JSON.stringify({
-				email,
-				password,
-				referrer: '',
-				scope: 'username, email, me',
-				clientUserAgent: 'GoPro Cloud Media Downloader',
-				two_factor: '',
-				finterprint: '',
-				brand: ''
-			})
-		});
-	})
-	.then(httpCheckParse)
-	.then(res => {
-		accessToken = res?.access_token;
-		logDebug(`Access token: ${accessToken}`);
-		if (!accessToken) {
-			logError('Login failed. No access token found in response.', res);
-			process.exit(2);
-		}
+initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might change this to be nice and immutable later.
+	.then(newLocalMediaState => {
+		state.local = newLocalMediaState;
+		saveState(state);
 		
-		logSuccess('Login successful.');
+		return initLoginRoutine();
+	})
+	.then(token => {
+		accessToken = token;
 		
 		logInfo('Retrieving GoPro media library...');
 		return fetch(logUrl(getMediaPageUrl(1)), {
@@ -118,10 +71,69 @@ fetch(logUrl(LOGIN_URL))
 	.then(items => {
 		logInfo(`Retrieved metadata about ${items.length} media library items from GoPro.`);
 		
-		runState.media = items;
+		const itemIds = items.map(item => item.id);
+		const oldStateItemIds = state.media.map(item => item.id);
+		const itemIdsPresentInOldStateButNotInNewState = oldStateItemIds.filter(
+			oldItemId => !itemIds.includes(oldItemId));
+		const itemIdsPresentInNewStateButNotInOldState = itemIds.filter(
+			newItemId => !oldStateItemIds.includes(newItemId));
+		const itemsPresentInNewStateButNotInOldState = items.filter(
+			item => itemIdsPresentInNewStateButNotInOldState.includes(item.id));
+		const itemsThatHaveNotYetBeenDownloaded = items.filter(item => !item.downloaded_at);
+		
+		const newMediaState = state.media.map(item => {
+			if (itemIdsPresentInOldStateButNotInNewState.includes(item.id) && !item.disappeared_at) {
+				logWarn(`Media library item ${item.id} is present in local state, but no longer in GoPro Cloud. `
+					+ `If the file has been deleted from the GoPro Cloud, then this is expected. `
+					+ `Otherwise, something fishy may be up...`);
+				item.disappeared_at = new Date();
+			}
+			
+			return item;
+		});
+		itemsPresentInNewStateButNotInOldState.forEach(({
+			                                                camera_model,
+			                                                captured_at,
+			                                                created_at,
+			                                                gopro_user_id,
+			                                                file_size,
+			                                                height,
+			                                                id,
+			                                                item_count,
+			                                                orientation,
+			                                                resolution,
+			                                                source_duration,
+			                                                type,
+			                                                width
+		                                                }) =>
+			newMediaState.push({
+				camera_model,
+				captured_at,
+				created_at,
+				gopro_user_id,
+				file_size,
+				height,
+				id,
+				item_count,
+				orientation,
+				resolution,
+				source_duration,
+				type,
+				width,
+				discovered_at: new Date()
+			}));
+		state.media = newMediaState;
 		saveState(state);
 		
-		items.map((item, i) => Promise.delay(i * 500).then(() => fetch(logUrl(getDownloadUrl(item)), {
+		const nItemsAlreadyDownloaded = items.length - itemsThatHaveNotYetBeenDownloaded.length;
+		if (nItemsAlreadyDownloaded > 0) {
+			logInfo(`${nItemsAlreadyDownloaded} have already previously been downloaded, and will be skipped.`);
+		}
+		
+		const filenamesAlreadyPresentLocally = state.local.filter(file => !file.disappeared_at)
+			.map(file => file.filename);
+		
+		itemsThatHaveNotYetBeenDownloaded.map((item, i) => Promise.delay(i * 500).then(() => fetch(logUrl(getDownloadUrl(item)), {
 			headers: getHeaders()
 		}))
 			.then(httpCheckParse)
@@ -133,6 +145,41 @@ fetch(logUrl(LOGIN_URL))
 						variations
 					}
 				} = res;
+				
+				if (!filename) {
+					logError(`No filename for media library item with ID ${item.id}.`);
+					throw new Error(`No filename for media library item with ID ${item.id}.`);
+				}
+				
+				const stateMediaItem = state.media.find(iStateMediaItem => iStateMediaItem.id === item.id);
+				if (!stateMediaItem) {
+					logError(`Media item ${item.id} with filename ${filename} is being processed, `
+						+ 'but is not present in the application state. This is a bug.');
+					throw new Error(`Media item ${item.id} with filename ${filename} is being processed, `
+						+ 'but is not present in the application state.');
+				}
+				stateMediaItem.filename = filename;
+				
+				const stateLocalFile = state.local.find(iStateLocalFile => !iStateLocalFile.cloud_id && iStateLocalFile.filename === filename);
+				if (stateLocalFile) {
+					stateLocalFile.cloud_id = item.id;
+				}
+				
+				saveState(state); // Yup. Relying on the reference remaining intact, here. Not ideal, I'll admit.
+				
+				if (filenamesAlreadyPresentLocally.includes(filename)) {
+					/*
+					 * This is really not the most robust check, but it will do for now.
+					 * Assuming users only manage/have content from a single GoPro device, as far as I know these
+					 * should not overlap.
+					 */
+					logInfo(`File ${filename} is already present on your machine. It will be skipped.`);
+					
+					stateMediaItem.downloaded_at = true;
+					saveState(state);
+					
+					return Promise.resolve(true);
+				}
 				
 				logDebug(`File ${filename} has ${files.length} ${pluralise('file', files)} and ${variations.length} ${pluralise('variation', variations)}.`);
 				if (files.length !== 1) {
@@ -172,6 +219,8 @@ fetch(logUrl(LOGIN_URL))
 					})
 					.then(() => {
 						logSuccess(`Download succeeded: ${filename}`);
+						stateMediaItem.downloaded_at = new Date();
+						saveState(state);
 					})
 					.catch(err => {
 						logError(`Download of file ${filename} failed.`, err);

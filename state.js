@@ -4,22 +4,28 @@ const { clone } = require('./utils');
 
 const STATE_FILENAME = 'state.json';
 const INITIAL_STATE = {
-	runs: []
+	media: [],
+	local: []
 }
 
 const loadState = () => {
 	try {
 		logDebug('Loading previous application state...');
-		return JSON.parse(Fs.readFileSync(STATE_FILENAME, 'utf8'));
+		const state = JSON.parse(Fs.readFileSync(STATE_FILENAME, 'utf8'));
+		logDebug('Loaded application state.');
+		
+		return state;
 	} catch {
 		logDebug('Failed to read state.json. Returning empty state.');
 		return clone(INITIAL_STATE);
-	} finally {
-		logDebug('Loaded application state.');
 	}
 };
 
 const saveState = state => {
+	if (!state) {
+		throw new Error('Attempt to save empty state.');
+	}
+	
 	logDebug('Saving application state...');
 	const json = JSON.stringify(state, undefined, 4);
 	Fs.writeFileSync(STATE_FILENAME, json);

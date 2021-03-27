@@ -9,7 +9,28 @@ const colouriseStrings = (params, colourisation) => params.map(param => {
 	return param;
 })
 
+// figlet -f slant GoPro
+// figlet -f small Cloud Media Downloader
+const welcome = () => console.log(`
+	   ______      ____
+	  / ____/___  / __ \\_________
+	 / / __/ __ \\/ /_/ / ___/ __ \\
+	/ /_/ / /_/ / ____/ /  / /_/ /
+	\\____/\\____/_/   /_/   \\____/
+`.brightCyan.bgBlack.bold + `
+  ___ _             _   __  __        _ _
+ / __| |___ _  _ __| | |  \\/  |___ __| (_)__ _
+| (__| / _ \\ || / _\` | | |\\/| / -_) _\` | / _\` |
+ \\___|_\\___/\\_,_\\__,_| |_|  |_\\___\\__,_|_\\__,_|
+ 
+ ___                  _              _
+|   \\ _____ __ ___ _ | |___  __ _ __| |___ _ _
+| |) / _ \\ V  V / ' \\| / _ \\/ _\` / _\` / -_) '_|
+|___/\\___/\\_/\\_/|_||_|_\\___/\\__,_\\__,_\\___|_|
+`.bgBlack.brightBlue);
+
 module.exports = {
+	welcome,
 	logSuccess: (...params) => console.info('✅'.bgGreen, ...colouriseStrings(params, x => x.green)),
 	logInfo: (...params) => console.info('ℹ️ '.bgGreen, ...colouriseStrings(params, x => x.brightCyan)),
 	logWarn: (...params) => console.warn('⚠️ '.bgYellow, ...colouriseStrings(params, x => x.red)),
@@ -22,5 +43,5 @@ module.exports = {
 		
 		return url;
 	},
-	prompt: label => prompt(`❓ `.bgBlue + `${label}`.bgWhite.black.underline)
+	prompt: label => prompt(`❓ `.bgBlue + `${label}`.bgWhite.black.underline + ' ')
 };
