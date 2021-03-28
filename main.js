@@ -79,7 +79,8 @@ initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might chan
 			newItemId => !oldStateItemIds.includes(newItemId));
 		const itemsPresentInNewStateButNotInOldState = items.filter(
 			item => itemIdsPresentInNewStateButNotInOldState.includes(item.id));
-		const itemsThatHaveNotYetBeenDownloaded = items.filter(item => !item.downloaded_at);
+		const itemIdsAlreadyDownloaded = state.media.filter(item => !!item.downloaded_at).map(item => item.id);
+		const itemsThatHaveNotYetBeenDownloaded = items.filter(item => !itemIdsAlreadyDownloaded.includes(item.id));
 		
 		const newMediaState = state.media.map(item => {
 			if (itemIdsPresentInOldStateButNotInNewState.includes(item.id) && !item.disappeared_at) {
@@ -147,7 +148,7 @@ initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might chan
 				} = res;
 				
 				if (!filename) {
-					logError(`No filename for media library item with ID ${item.id}.`);
+					logError(`No filename for media library item with ID ${item.id}.`, res);
 					throw new Error(`No filename for media library item with ID ${item.id}.`);
 				}
 				
