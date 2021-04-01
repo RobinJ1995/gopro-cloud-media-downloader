@@ -1,7 +1,7 @@
-const recurse = require('recurse');
-const Fs = require('fs');
-const Path = require('path');
-const { logSuccess, logInfo, logWarn, logError, logDebug, prompt } = require('./logging');
+import recurse from 'recurse';
+import Fs from 'fs';
+import Path from 'path';
+import { logSuccess, logInfo, logWarn, logError, logDebug, prompt } from './logging.js';
 
 const mediaFilter = path => path.match(/\.(mp4|jpg|jpeg)$/i);
 
@@ -25,7 +25,7 @@ const scandir = path => new Promise((resolve, reject) => {
 	}
 });
 
-const initLocalFolderScanRoutine = state => {
+export const initLocalFolderScanRoutine = state => {
 	let localDirToScan = process.env.SCAN_LOCAL_DIR;
 	let scanLocalDir = localDirToScan ? true : null;
 	while (scanLocalDir !== false && !localDirToScan) {
@@ -84,8 +84,4 @@ const initLocalFolderScanRoutine = state => {
 			
 			return newState;
 		});
-};
-
-module.exports = {
-	initLocalFolderScanRoutine
 };

@@ -1,19 +1,21 @@
 {
-  "name": "gopro-cloud-media-downloader-node",
-  "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bluebird": "^3.7.2",
-    "colors": "^1.4.0",
-    "fetch-cookie": "^0.11.0",
-    "node-fetch": "^2.6.1",
-    "prompt-sync": "^4.2.0",
-    "recurse": "^3.0.2"
-  }
+	"name": "gopro-cloud-media-downloader-node",
+	"version": "1.0.0",
+	"description": "",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"start": "node main.js"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"bluebird": "^3.7.2",
+		"colors": "^1.4.0",
+		"fetch-cookie": "^0.11.0",
+		"node-fetch": "^2.6.1",
+		"prompt-sync": "^4.2.0",
+		"recurse": "^3.0.2"
+	}
 }

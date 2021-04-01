@@ -42,7 +42,7 @@ local machine.
 ## What does not yet work
 - [ ] Some form of selectively downloading files, outside of the current check whether the file already exists locally (or was downloaded previously).
 - [ ] Resume on failure or when cancelled
-- [ ] Retry on failure
+- [X] Retry on failure (works on API calls, not yet on actual downloads)
 
 ## Known issues
 - [ ] Does not work if your GoPro account has 2 factor authentication enabled.

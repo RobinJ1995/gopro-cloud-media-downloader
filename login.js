@@ -1,10 +1,12 @@
-const { logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } = require('./logging');
-const { checkHttpStatus, httpCheckParse, clone, pluralise, stripFields, LOGIN_URL } = require('./utils');
-const fetch = require('fetch-cookie')(require('node-fetch'));
+import { logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } from './logging.js';
+import { checkHttpStatus, httpCheckParse, clone, pluralise, stripFields, LOGIN_URL } from './utils.js';
+import NodeFetch from 'node-fetch';
+import FetchCookie from 'fetch-cookie';
+const fetch = FetchCookie(NodeFetch);
 
 const findCsrfToken = html => [...html.matchAll(/meta\s+name=\"csrf\-token\"\s+content=\"?([^\"\/>]+)\"?\/?>/gi)][0][1];
 
-const initLoginRoutine = () => {
+export const initLoginRoutine = () => {
 	logInfo('Please provide your GoPro Cloud credentials');
 	console.log('   ===========================================');
 	const email = process.env.GOPRO_ACCOUNT_EMAIL || prompt('E-mail address: ');
@@ -55,8 +57,4 @@ const initLoginRoutine = () => {
 			
 			return accessToken;
 		});
-};
-
-module.exports = {
-	initLoginRoutine
 };

@@ -1,6 +1,6 @@
-const Fs = require('fs');
-const { logDebug } = require('./logging');
-const { clone } = require('./utils');
+import Fs from 'fs';
+import { logDebug } from './logging.js';
+import { clone } from './utils.js';
 
 const STATE_FILENAME = 'state.json';
 const INITIAL_STATE = {
@@ -8,7 +8,7 @@ const INITIAL_STATE = {
 	local: []
 }
 
-const loadState = () => {
+export const loadState = () => {
 	try {
 		logDebug('Loading previous application state...');
 		const state = JSON.parse(Fs.readFileSync(STATE_FILENAME, 'utf8'));
@@ -21,7 +21,7 @@ const loadState = () => {
 	}
 };
 
-const saveState = state => {
+export const saveState = state => {
 	if (!state) {
 		throw new Error('Attempt to save empty state.');
 	}
@@ -31,8 +31,3 @@ const saveState = state => {
 	Fs.writeFileSync(STATE_FILENAME, json);
 	logDebug('Saved application state.');
 }
-
-module.exports = {
-	loadState,
-	saveState
-};
