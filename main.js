@@ -12,6 +12,7 @@ import { initLoginRoutine } from './login.js';
 
 const state = loadState();
 
+const ARGS = process.argv.slice(2).map(x => String(x).toLowerCase().trim());
 welcome();
 
 state.local = await initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might change this to be nice and immutable later.
@@ -69,6 +70,12 @@ const itemsPresentInNewStateButNotInOldState = cloudMediaItems.filter(
 	item => itemIdsPresentInNewStateButNotInOldState.includes(item.id));
 const itemIdsAlreadyDownloaded = state.media.filter(item => !!item.downloaded_at).map(item => item.id);
 const itemsThatHaveNotYetBeenDownloaded = cloudMediaItems.filter(item => !itemIdsAlreadyDownloaded.includes(item.id));
+const itemIdsToBeRedownloaded = new Set(ARGS.includes('--redownload')
+	? state.media.filter(item => !!item.redownload_requested_at).map(item => item.id)
+	: []);
+
+const itemsToDownload = cloudMediaItems.filter(
+	item => !itemIdsAlreadyDownloaded.includes(item.id) || itemIdsToBeRedownloaded.has(item.id));
 
 const newMediaState = state.media.map(item => {
 	if (itemIdsPresentInOldStateButNotInNewState.includes(item.id) && !item.disappeared_at) {
@@ -121,8 +128,9 @@ if (nItemsAlreadyDownloaded > 0) {
 const filenamesAlreadyPresentLocally = new Set(state.local.filter(file => !file.disappeared_at)
 	.map(file => file.filename));
 
-for (let i = 0; i < itemsThatHaveNotYetBeenDownloaded.length; i++) {
-	const item = itemsThatHaveNotYetBeenDownloaded[i];
+
+for (let i = 0; i < itemsToDownload.length; i++) {
+	const item = itemsToDownload[i];
 	
 	const itemToDownload = await autoRetry(fetch(logUrl(getDownloadUrl(item)), {
 		headers: getHeaders()
@@ -139,6 +147,19 @@ for (let i = 0; i < itemsThatHaveNotYetBeenDownloaded.length; i++) {
 	if (!filename) {
 		logError(`No filename for media library item with ID ${item.id}.`, itemToDownload);
 		continue;
+	}
+	
+	const localStat = Fs.statSync(filename, { throwIfNoEntry: false });
+	if (localStat) {
+		// File already exists locally.
+		if (!itemIdsToBeRedownloaded.has(item.id)) {
+			logError(`File ${filename} already exists locally. It will be skipped.`);
+			continue;
+		}
+		
+		// It's grand. File is queued to be re-downloaded.
+		logInfo(`File ${filename} already exists, but is queued for re-download. Deleting current on-disk copy...`);
+		Fs.unlinkSync(filename);
 	}
 	
 	// State changes start here
@@ -218,9 +239,45 @@ for (let i = 0; i < itemsThatHaveNotYetBeenDownloaded.length; i++) {
 	.then(() => {
 		logSuccess(`Download succeeded: ${filename}`);
 		stateMediaItem.downloaded_at = new Date();
+		if (!!stateMediaItem.redownload_requested_at) {
+			stateMediaItem.redownload_requested_at = null;
+		}
 		saveState(state);
 	})
 	.catch(err => {
 		logError(`Download of file ${filename} failed.`, err);
 	});
+}
+
+let stateChangedInPostDownloadFileSizeCheck = false;
+for (let i = 0; i < state.media.length; i++) {
+	const mediaStateItem = state.media[i];
+	
+	if (!mediaStateItem.filename) {
+		// Can't find a thing with no filename.
+		continue;
+	} else if (!!mediaStateItem.disappeared_at) {
+		// File no longer present in GoPro Cloud.
+		continue;
+	}
+	
+	const stat = Fs.statSync(mediaStateItem.filename, { throwIfNoEntry: false });
+	if (!stat) {
+		// File has since been moved out of the current working directory.
+		continue;
+	} else if (mediaStateItem.file_size !== stat.size) {
+		const onDiskMib = (stat.size / 1024.0 / 1024.0).toFixed(2);
+		const inCloudMib = (mediaStateItem.file_size / 1024.0 / 1024.0).toFixed(2);
+		logWarn(`GoPro Cloud reports size of ${inCloudMib}MiB for ${mediaStateItem.filename}, but file on disk is ${onDiskMib}MiB. Run the application with --redownload command line flag to re-download it.`);
+		mediaStateItem.redownload_requested_at = new Date();
+		stateChangedInPostDownloadFileSizeCheck = true;
+	}
+}
+if (stateChangedInPostDownloadFileSizeCheck) {
+	saveState(state);
+}
+
+const nItemsQueuedForRedownload = state.media.filter(item => !!item.redownload_requested_at && !item.disappeared_at).length;
+if (nItemsQueuedForRedownload > 0) {
+	logInfo(`${nItemsQueuedForRedownload} items are queued to be re-downloaded because their size on disk is different from what the GoPro Cloud reports. Run the application with --redownload command line flag to delete your local copies (which are likely corrupted) and re-download them from the GoPro Cloud.`);
 }
