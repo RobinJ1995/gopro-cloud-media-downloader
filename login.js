@@ -39,7 +39,7 @@ export const initLoginRoutine = () => {
 					scope: 'username, email, me',
 					clientUserAgent: 'GoPro Cloud Media Downloader',
 					two_factor: '',
-					finterprint: '',
+					fingerprint: '',
 					brand: ''
 				})
 			});
