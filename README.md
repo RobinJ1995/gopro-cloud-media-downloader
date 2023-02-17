@@ -46,3 +46,9 @@ local machine.
 
 ## Known issues
 - [ ] Does not work if your GoPro account has 2 factor authentication enabled.
+
+# Options
+
+- `--redownload`: Re-download files for which a re-download was requested after a previous run.
+- `--dry-run`: Do not actually download/delete files.
+

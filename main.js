@@ -1,9 +1,10 @@
 import NodeFetch from 'node-fetch';
+import NodeFetchProgress from 'node-fetch-progress';
 import FetchCookie from 'fetch-cookie';
 const fetch = FetchCookie(NodeFetch);
 
 import { checkHttpStatus, httpCheckParse, pluralise, stripFields, getMediaPageUrl, getDownloadUrl, autoRetry } from './utils.js';
-import { welcome, logSuccess, logInfo, logWarn, logError, logDebug, logUrl } from './logging.js';
+import { welcome, logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt, promptYesOrNo } from './logging.js';
 import Fs from 'fs';
 import Promise from 'bluebird';
 import { loadState, saveState } from './state.js';
@@ -13,7 +14,11 @@ import { initLoginRoutine } from './login.js';
 const state = loadState();
 
 const ARGS = process.argv.slice(2).map(x => String(x).toLowerCase().trim());
+const DRY_RUN = ARGS.includes('--dry-run');
 welcome();
+if (DRY_RUN) {
+	logInfo('--dry-run supplied. No items will actually be downloaded.');
+}
 
 state.local = await initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might change this to be nice and immutable later.
 saveState(state);
@@ -74,7 +79,7 @@ const itemIdsToBeRedownloaded = new Set(ARGS.includes('--redownload')
 	? state.media.filter(item => !!item.redownload_requested_at).map(item => item.id)
 	: []);
 
-const itemsToDownload = cloudMediaItems.filter(
+const itemsAvailableForDownload = cloudMediaItems.filter(
 	item => !itemIdsAlreadyDownloaded.includes(item.id) || itemIdsToBeRedownloaded.has(item.id));
 
 const newMediaState = state.media.map(item => {
@@ -128,13 +133,50 @@ if (nItemsAlreadyDownloaded > 0) {
 const filenamesAlreadyPresentLocally = new Set(state.local.filter(file => !file.disappeared_at)
 	.map(file => file.filename));
 
+logInfo(`State of GoPro media library indexed. Contains ${state?.media?.length} items.`);
+const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? prompt('Enter the date (in format YYYY-MM-DD) from after which you would like to download items, or leave empty to download all items.');
+let itemsToDownload = null;
+if (!String(downloadItemsAfterDateStr).trim()) {
+	if (!promptYesOrNo('No date supplied. All items will be downloaded. Correct?')) {
+		logInfo('Operation aborted.');
+		process.exit(0);
+	}
+
+	itemsToDownload = [...itemsAvailableForDownload];
+} else {
+	const downloadItemsAfterDate = new Date(downloadItemsAfterDateStr);
+	if (!promptYesOrNo(`Items with a capture date after (and including) ${downloadItemsAfterDate.toDateString()} will be downloaded. Correct?`)) {
+		logInfo('Operation aborted.');
+		process.exit(0);
+	}
+
+	itemsToDownload = itemsAvailableForDownload.filter(item => downloadItemsAfterDate <= new Date(item.captured_at));
+	logInfo(`Out of ${itemsAvailableForDownload.length} items available for download, ${itemsToDownload.length} were captured after ${downloadItemsAfterDate.toDateString()}.`);
+}
 
 for (let i = 0; i < itemsToDownload.length; i++) {
 	const item = itemsToDownload[i];
+	let stateChanged = false;
 	
-	const itemToDownload = await autoRetry(fetch(logUrl(getDownloadUrl(item)), {
-		headers: getHeaders()
-	}).then(httpCheckParse));
+	const stateMediaItem = state.media.find(iStateMediaItem => iStateMediaItem.id === item.id);
+	if (!stateMediaItem) {
+		logError(`Media item ${item.id} with filename ${filename} is being processed, `
+			+ 'but is not present in the application state. This is a bug.');
+		throw new Error(`Media item ${item.id} with filename ${filename} is being processed, `
+			+ 'but is not present in the application state.');
+	}
+
+	let itemToDownload = null;
+	try {
+		itemToDownload = await autoRetry(fetch(logUrl(getDownloadUrl(item)), {
+			headers: getHeaders()
+		}).then(httpCheckParse));
+	} catch (ex) {
+		logError(`Failed to download item ${item.id}. ${ex}`);
+		stateMediaItem.download_failed_at = new Date();
+		stateChanged = true;
+		continue;
+	}
 	
 	const {
 		filename,
@@ -159,19 +201,14 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		
 		// It's grand. File is queued to be re-downloaded.
 		logInfo(`File ${filename} already exists, but is queued for re-download. Deleting current on-disk copy...`);
-		Fs.unlinkSync(filename);
+		if (DRY_RUN) {
+			logInfo(`Except we're doing a dry run, so... not doing that :)`);
+		} else {
+			Fs.unlinkSync(filename);
+		}
 	}
 	
-	// State changes start here
-	let stateChanged = false;
-	
-	const stateMediaItem = state.media.find(iStateMediaItem => iStateMediaItem.id === item.id);
-	if (!stateMediaItem) {
-		logError(`Media item ${item.id} with filename ${filename} is being processed, `
-			+ 'but is not present in the application state. This is a bug.');
-		throw new Error(`Media item ${item.id} with filename ${filename} is being processed, `
-			+ 'but is not present in the application state.');
-	} else if (stateMediaItem.filename !== filename) {
+	if (stateMediaItem.filename !== filename) {
 		stateMediaItem.filename = filename;
 		stateChanged = true;
 	}
@@ -224,9 +261,14 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 	logDebug(`Highest quality file for ${filename} detected.`,
 		stripFields(highestQuality, ['url', 'head']));
 	
+	if (DRY_RUN) {
+		logInfo(`Dry run. Skipping download of file ${filename}`);
+		continue;
+	}
 	logInfo(`Downloading file: ${filename}`);
-	
 	const fileResponse = await autoRetry(fetch(logUrl(highestQuality.url)).then(checkHttpStatus));
+	const downloadProgress = new NodeFetchProgress(fileResponse, { throttle: 2500 });
+	downloadProgress.on('progress', p => console.log(`🧮 ${i}/${itemsToDownload.length} 🌐 ${filename} 📁 ${p.doneh}/${p.totalh} ⏬ ${p.rateh}`));
 	logDebug(`Download of file ${filename} started.`);
 	
 	const stream = Fs.createWriteStream(filename);
@@ -246,6 +288,8 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 	})
 	.catch(err => {
 		logError(`Download of file ${filename} failed.`, err);
+		stateMediaItem.download_failed_at = new Date();
+		saveState(state);
 	});
 }
 
@@ -281,3 +325,4 @@ const nItemsQueuedForRedownload = state.media.filter(item => !!item.redownload_r
 if (nItemsQueuedForRedownload > 0) {
 	logInfo(`${nItemsQueuedForRedownload} items are queued to be re-downloaded because their size on disk is different from what the GoPro Cloud reports. Run the application with --redownload command line flag to delete your local copies (which are likely corrupted) and re-download them from the GoPro Cloud.`);
 }
+

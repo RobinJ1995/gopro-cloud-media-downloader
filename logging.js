@@ -45,3 +45,15 @@ export const logUrl = url => {
 	return url;
 };
 export const prompt = label => promptSync(`❓ `.bgBlue + `${label}`.bgWhite.black.underline + ' ');
+export const promptYesOrNo = label => {
+	while (true) {
+		const answer = prompt(`${label} (yes/no)`);
+		if (String(answer).toLowerCase().trim() === 'no') {
+			return false;
+		} else if (String(answer).toLowerCase().trim() === 'yes') {
+			return true;
+		}
+
+		logWarn('Please answer "yes" or "no".');
+	}
+};
