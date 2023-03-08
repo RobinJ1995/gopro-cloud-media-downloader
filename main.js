@@ -6,6 +6,7 @@ const fetch = FetchCookie(NodeFetch);
 import { checkHttpStatus, httpCheckParse, pluralise, stripFields, getMediaPageUrl, getDownloadUrl, autoRetry } from './utils.js';
 import { welcome, logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt, promptYesOrNo } from './logging.js';
 import Fs from 'fs';
+import Path from 'path';
 import Promise from 'bluebird';
 import { loadState, saveState } from './state.js';
 import { initLocalFolderScanRoutine } from './scan_local_folder.js';
@@ -191,9 +192,13 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		continue;
 	}
 
-	const targetFilename = [item?.id, item?.camera_model?.replace(/[^a-z0-9]/ig, ''), filename]
+	const {
+		ext: fileExtension,
+		name: filenameWithoutExtension
+	 } = Path.parse(filename);
+	const targetFilename = [filenameWithoutExtension, item?.camera_model?.replace(/[^a-z0-9]/ig, ''), item?.id]
 		.filter(x => !!x)
-		.join('_');
+		.join('_') + fileExtension;
 	
 	const localStat = Fs.statSync(targetFilename, { throwIfNoEntry: false });
 	if (localStat) {
@@ -212,8 +217,8 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		}
 	}
 	
-	if (stateMediaItem?.targetFilename !== targetFilename) {
-		stateMediaItem.targetFilename = targetFilename;
+	if (stateMediaItem?.target_filename !== targetFilename) {
+		stateMediaItem.target_filename = targetFilename;
 		stateChanged = true;
 	}
 	if (stateMediaItem.filename !== filename) {
@@ -300,7 +305,7 @@ let stateChangedInPostDownloadFileSizeCheck = false;
 for (let i = 0; i < state.media.length; i++) {
 	const mediaStateItem = state.media[i];
 	
-	if (!mediaStateItem.targetFilename) {
+	if (!mediaStateItem.target_filename) {
 		// Can't find a thing with no filename.
 		continue;
 	} else if (!!mediaStateItem.disappeared_at) {
@@ -308,14 +313,14 @@ for (let i = 0; i < state.media.length; i++) {
 		continue;
 	}
 	
-	const stat = Fs.statSync(mediaStateItem.targetFilename, { throwIfNoEntry: false });
+	const stat = Fs.statSync(mediaStateItem.target_filename, { throwIfNoEntry: false });
 	if (!stat) {
 		// File has since been moved out of the current working directory.
 		continue;
 	} else if (mediaStateItem.file_size !== stat.size) {
 		const onDiskMib = (stat.size / 1024.0 / 1024.0).toFixed(2);
 		const inCloudMib = (mediaStateItem.file_size / 1024.0 / 1024.0).toFixed(2);
-		logWarn(`GoPro Cloud reports size of ${inCloudMib}MiB for ${mediaStateItem.targetFilename}, but file on disk is ${onDiskMib}MiB. Run the application with --redownload command line flag to re-download it.`);
+		logWarn(`GoPro Cloud reports size of ${inCloudMib}MiB for ${mediaStateItem.target_filename}, but file on disk is ${onDiskMib}MiB. Run the application with --redownload command line flag to re-download it.`);
 		mediaStateItem.redownload_requested_at = new Date();
 		stateChangedInPostDownloadFileSizeCheck = true;
 	}
