@@ -50,7 +50,6 @@ export const prompt = async (label, type = 'text') => (await Prompts({
 export const promptYesOrNo = async label => {
 	while (true) {
 		const answer = await prompt(`${label} (yes/no)`);
-		console.log(answer);
 		if (String(answer).toLowerCase().trim() === 'no') {
 			return false;
 		} else if (String(answer).toLowerCase().trim() === 'yes') {
