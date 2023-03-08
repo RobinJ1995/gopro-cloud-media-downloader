@@ -21,7 +21,7 @@ if (DRY_RUN) {
 	logInfo('--dry-run supplied. No items will actually be downloaded.');
 }
 
-state.local = await initLocalFolderScanRoutine(state) // Needs to be a mutable reference. Might change this to be nice and immutable later.
+state.local = await initLocalFolderScanRoutine(state); // Needs to be a mutable reference. Might change this to be nice and immutable later.
 saveState(state);
 
 const accessToken = await initLoginRoutine();
@@ -135,10 +135,10 @@ const fileIdsAlreadyPresentLocally = new Set(state.local.filter(file => !file.di
 	.map(file => file.id));
 
 logInfo(`State of GoPro media library indexed. Contains ${state?.media?.length} items.`);
-const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? prompt('Enter the date (in format YYYY-MM-DD) from after which you would like to download items, or leave empty to download all items.');
+const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? await prompt('Enter the date (in format YYYY-MM-DD) from after which you would like to download items, or leave empty to download all items.');
 let itemsToDownload = null;
 if (!String(downloadItemsAfterDateStr).trim()) {
-	if (!promptYesOrNo('No date supplied. All items will be downloaded. Correct?')) {
+	if (!await promptYesOrNo('No date supplied. All items will be downloaded. Correct?')) {
 		logInfo('Operation aborted.');
 		process.exit(0);
 	}
@@ -146,7 +146,7 @@ if (!String(downloadItemsAfterDateStr).trim()) {
 	itemsToDownload = [...itemsAvailableForDownload];
 } else {
 	const downloadItemsAfterDate = new Date(downloadItemsAfterDateStr);
-	if (!promptYesOrNo(`Items with a capture date after (and including) ${downloadItemsAfterDate.toDateString()} will be downloaded. Correct?`)) {
+	if (!await promptYesOrNo(`Items with a capture date after (and including) ${downloadItemsAfterDate.toDateString()} will be downloaded. Correct?`)) {
 		logInfo('Operation aborted.');
 		process.exit(0);
 	}

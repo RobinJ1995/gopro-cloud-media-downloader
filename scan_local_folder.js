@@ -25,17 +25,17 @@ const scandir = path => new Promise((resolve, reject) => {
 	}
 });
 
-export const initLocalFolderScanRoutine = state => {
+export const initLocalFolderScanRoutine = async state => {
 	let localDirToScan = process.env.SCAN_LOCAL_DIR;
 	let scanLocalDir = localDirToScan ? true : null;
 	while (scanLocalDir !== false && !localDirToScan) {
-		const answerDoScan = prompt('Would you like to scan a local folder for media so as to not download files from the GoPro Cloud that you already have locally? (yes/no)');
+		const answerDoScan = await prompt('Would you like to scan a local folder for media so as to not download files from the GoPro Cloud that you already have locally? (yes/no)');
 		if (String(answerDoScan).toLowerCase().trim() === 'no') {
 			scanLocalDir = false;
 			continue;
 		} else if (String(answerDoScan).toLowerCase().trim() === 'yes') {
 			scanLocalDir = true;
-			const answerLocalDir = prompt('Please enter the path to the local folder you would like to scan (or enter \'.\' for the folder you are running this application from):');
+			const answerLocalDir = await prompt('Please enter the path to the local folder you would like to scan (or enter \'.\' for the folder you are running this application from):');
 			const stat = Fs.statSync(answerLocalDir, {
 				throwIfNoEntry: false
 			});

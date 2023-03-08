@@ -1,6 +1,4 @@
-import PromptSync from 'prompt-sync';
-const promptSync = PromptSync();
-
+import Prompts from 'prompts';
 import Colors from 'colors';
 
 const colouriseStrings = (params, colourisation) => params.map(param => {
@@ -44,10 +42,15 @@ export const logUrl = url => {
 	
 	return url;
 };
-export const prompt = label => promptSync(`❓ `.bgBlue + `${label}`.bgWhite.black.underline + ' ');
-export const promptYesOrNo = label => {
+export const prompt = async (label, type = 'text') => (await Prompts({
+	message: label.bgWhite.black.underline,
+	name: 'value',
+	type
+})).value;
+export const promptYesOrNo = async label => {
 	while (true) {
-		const answer = prompt(`${label} (yes/no)`);
+		const answer = await prompt(`${label} (yes/no)`);
+		console.log(answer);
 		if (String(answer).toLowerCase().trim() === 'no') {
 			return false;
 		} else if (String(answer).toLowerCase().trim() === 'yes') {

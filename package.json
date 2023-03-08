@@ -16,7 +16,7 @@
 		"fetch-cookie": "^0.11.0",
 		"node-fetch": "^2.6.1",
 		"node-fetch-progress": "^1.0.2",
-		"prompt-sync": "^4.2.0",
+		"prompts": "^2.4.2",
 		"recurse": "^3.0.2"
 	}
 }
