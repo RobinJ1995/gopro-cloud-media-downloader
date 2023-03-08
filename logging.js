@@ -42,10 +42,11 @@ export const logUrl = url => {
 	
 	return url;
 };
-export const prompt = async (label, type = 'text') => (await Prompts({
+export const prompt = async (label, type = 'text', extraOpts = Object.freeze({})) => (await Prompts({
 	message: label.bgWhite.black.underline,
 	name: 'value',
-	type
+	type,
+	...extraOpts
 })).value;
 export const promptYesOrNo = async label => {
 	while (true) {

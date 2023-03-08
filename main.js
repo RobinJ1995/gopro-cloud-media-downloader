@@ -135,7 +135,7 @@ const fileIdsAlreadyPresentLocally = new Set(state.local.filter(file => !file.di
 	.map(file => file.id));
 
 logInfo(`State of GoPro media library indexed. Contains ${state?.media?.length} items.`);
-const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? await prompt('Enter the date (in format YYYY-MM-DD) from after which you would like to download items, or leave empty to download all items.');
+const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? await prompt('Enter the date from after which you would like to download items, or leave empty to download all items.', 'date', { mask: 'YYYY-MM-DD'});
 let itemsToDownload = null;
 if (!String(downloadItemsAfterDateStr).trim()) {
 	if (!await promptYesOrNo('No date supplied. All items will be downloaded. Correct?')) {
