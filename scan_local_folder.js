@@ -1,7 +1,7 @@
 import recurse from 'recurse';
 import Fs from 'fs';
 import Path from 'path';
-import { logSuccess, logInfo, logWarn, logError, logDebug, prompt } from './logging.js';
+import { logSuccess, logInfo, logWarn, logError, logDebug, prompt, promptYesOrNo } from './logging.js';
 
 const mediaFilter = path => path.match(/\.(mp4|jpg|jpeg)$/i);
 
@@ -29,27 +29,23 @@ export const initLocalFolderScanRoutine = async state => {
 	let localDirToScan = process.env.SCAN_LOCAL_DIR;
 	let scanLocalDir = localDirToScan ? true : null;
 	while (scanLocalDir !== false && !localDirToScan) {
-		const answerDoScan = await prompt('Would you like to scan a local folder for media so as to not download files from the GoPro Cloud that you already have locally? (yes/no)');
-		if (String(answerDoScan).toLowerCase().trim() === 'no') {
+		const answerDoScan = await promptYesOrNo('Would you like to scan a local folder for media so as to not download files from the GoPro Cloud that you already have locally?');
+		if (!answerDoScan) {
 			scanLocalDir = false;
 			continue;
-		} else if (String(answerDoScan).toLowerCase().trim() === 'yes') {
-			scanLocalDir = true;
-			const answerLocalDir = await prompt('Please enter the path to the local folder you would like to scan (or enter \'.\' for the folder you are running this application from):');
-			const stat = Fs.statSync(answerLocalDir, {
-				throwIfNoEntry: false
-			});
-			if (!stat || !stat.isDirectory()) {
-				logWarn(`The path "${answerLocalDir}" does not exist, or is not a folder.`);
-				continue;
-			}
-			
-			localDirToScan = answerLocalDir;
-			break;
-		} else {
-			logWarn('Please answer "yes" or "no".');
+		}
+		scanLocalDir = true;
+		const answerLocalDir = await prompt('Please enter the path to the local folder you would like to scan (or enter \'.\' for the folder you are running this application from):');
+		const stat = Fs.statSync(answerLocalDir, {
+			throwIfNoEntry: false
+		});
+		if (!stat || !stat.isDirectory()) {
+			logWarn(`The path "${answerLocalDir}" does not exist, or is not a folder.`);
 			continue;
 		}
+		
+		localDirToScan = answerLocalDir;
+		break;
 	}
 	
 	const oldState = state.local || [];

@@ -48,15 +48,4 @@ export const prompt = async (label, type = 'text', extraOpts = Object.freeze({})
 	type,
 	...extraOpts
 })).value;
-export const promptYesOrNo = async label => {
-	while (true) {
-		const answer = await prompt(`${label} (yes/no)`);
-		if (String(answer).toLowerCase().trim() === 'no') {
-			return false;
-		} else if (String(answer).toLowerCase().trim() === 'yes') {
-			return true;
-		}
-
-		logWarn('Please answer "yes" or "no".');
-	}
-};
+export const promptYesOrNo = async label => await prompt(label, 'toggle', { active: 'yes', inactive: 'no' });
