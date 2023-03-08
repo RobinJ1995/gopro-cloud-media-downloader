@@ -161,9 +161,9 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 	
 	const stateMediaItem = state.media.find(iStateMediaItem => iStateMediaItem.id === item.id);
 	if (!stateMediaItem) {
-		logError(`Media item ${item.id} with filename ${filename} is being processed, `
+		logError(`Media item ${item.id} with filename ${item.filename} is being processed, `
 			+ 'but is not present in the application state. This is a bug.');
-		throw new Error(`Media item ${item.id} with filename ${filename} is being processed, `
+		throw new Error(`Media item ${item.id} with filename ${item.filename} is being processed, `
 			+ 'but is not present in the application state.');
 	}
 
