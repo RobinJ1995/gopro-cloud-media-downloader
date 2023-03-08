@@ -40,7 +40,7 @@ local machine.
 - [X] Downloading files
 
 ## What does not yet work
-- [ ] Some form of selectively downloading files, outside of the current check whether the file already exists locally (or was downloaded previously).
+- [X] Some form of selectively downloading files, outside of the current check whether the file already exists locally (or was downloaded previously). (Script will ask for a date, only files captured after this date will be downloaded.)
 - [ ] Resume on failure or when cancelled
 - [X] Retry on failure (works on API calls, not yet on actual downloads)
 
