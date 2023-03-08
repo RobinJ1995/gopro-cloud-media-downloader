@@ -130,8 +130,8 @@ const nItemsAlreadyDownloaded = cloudMediaItems.length - itemsThatHaveNotYetBeen
 if (nItemsAlreadyDownloaded > 0) {
 	logInfo(`${nItemsAlreadyDownloaded} have already previously been downloaded, and will be skipped.`);
 }
-const filenamesAlreadyPresentLocally = new Set(state.local.filter(file => !file.disappeared_at)
-	.map(file => file.filename));
+const fileIdsAlreadyPresentLocally = new Set(state.local.filter(file => !file.disappeared_at)
+	.map(file => file.id));
 
 logInfo(`State of GoPro media library indexed. Contains ${state?.media?.length} items.`);
 const downloadItemsAfterDateStr = process.env.DOWNLOAD_FILES_CAPTURED_AFTER_DATE ?? prompt('Enter the date (in format YYYY-MM-DD) from after which you would like to download items, or leave empty to download all items.');
@@ -190,24 +190,32 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		logError(`No filename for media library item with ID ${item.id}.`, itemToDownload);
 		continue;
 	}
+
+	const targetFilename = [item?.id, item?.camera_model?.replace(/[^a-z0-9]/ig, ''), filename]
+		.filter(x => !!x)
+		.join('_');
 	
-	const localStat = Fs.statSync(filename, { throwIfNoEntry: false });
+	const localStat = Fs.statSync(targetFilename, { throwIfNoEntry: false });
 	if (localStat) {
 		// File already exists locally.
 		if (!itemIdsToBeRedownloaded.has(item.id)) {
-			logError(`File ${filename} already exists locally. It will be skipped.`);
+			logError(`File ${targetFilename} already exists locally. It will be skipped.`);
 			continue;
 		}
 		
 		// It's grand. File is queued to be re-downloaded.
-		logInfo(`File ${filename} already exists, but is queued for re-download. Deleting current on-disk copy...`);
+		logInfo(`File ${targetFilename} already exists, but is queued for re-download. Deleting current on-disk copy...`);
 		if (DRY_RUN) {
 			logInfo(`Except we're doing a dry run, so... not doing that :)`);
 		} else {
-			Fs.unlinkSync(filename);
+			Fs.unlinkSync(targetFilename);
 		}
 	}
 	
+	if (stateMediaItem?.targetFilename !== targetFilename) {
+		stateMediaItem.targetFilename = targetFilename;
+		stateChanged = true;
+	}
 	if (stateMediaItem.filename !== filename) {
 		stateMediaItem.filename = filename;
 		stateChanged = true;
@@ -219,13 +227,8 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		stateChanged = true;
 	}
 	
-	if (filenamesAlreadyPresentLocally.has(filename)) {
-		/*
-		 * This is really not the most robust check, but it will do for now.
-		 * Assuming users only manage/have content from a single GoPro device, as far as I know these
-		 * should not overlap.
-		 */
-		logInfo(`File ${filename} is already present on your machine. It will be skipped.`);
+	if (fileIdsAlreadyPresentLocally.has(item.id)) {
+		logInfo(`File ${targetFilename} is already present on your machine. It will be skipped.`);
 		
 		stateMediaItem.downloaded_at = true;
 		saveState(state);
@@ -239,9 +242,9 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		saveState(state); // This relies on the reference remaining intact. Not ideal.
 	}
 	
-	logDebug(`File ${filename} has ${files.length} ${pluralise('file', files)} and ${variations.length} ${pluralise('variation', variations)}.`);
+	logDebug(`File ${targetFilename} has ${files.length} ${pluralise('file', files)} and ${variations.length} ${pluralise('variation', variations)}.`);
 	if (files.length !== 1) {
-		logError(`Media item ${filename} contains ${files.length} files. This is unsupported.`);
+		logError(`Media item ${targetFilename} contains ${files.length} files. This is unsupported.`);
 		continue;
 	}
 	
@@ -258,20 +261,20 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 			highestQuality = variation;
 		}
 	}
-	logDebug(`Highest quality file for ${filename} detected.`,
+	logDebug(`Highest quality file for ${targetFilename} detected.`,
 		stripFields(highestQuality, ['url', 'head']));
 	
 	if (DRY_RUN) {
-		logInfo(`Dry run. Skipping download of file ${filename}`);
+		logInfo(`Dry run. Skipping download of file ${targetFilename}`);
 		continue;
 	}
-	logInfo(`Downloading file: ${filename}`);
+	logInfo(`Downloading file: ${targetFilename}`);
 	const fileResponse = await autoRetry(fetch(logUrl(highestQuality.url)).then(checkHttpStatus));
 	const downloadProgress = new NodeFetchProgress(fileResponse, { throttle: 2500 });
-	downloadProgress.on('progress', p => console.log(`🧮 ${i}/${itemsToDownload.length} 🌐 ${filename} 📁 ${p.doneh}/${p.totalh} ⏬ ${p.rateh}`));
-	logDebug(`Download of file ${filename} started.`);
+	downloadProgress.on('progress', p => console.log(`🧮 ${i}/${itemsToDownload.length} 🌐 ${targetFilename} 📁 ${p.doneh}/${p.totalh} ⏬ ${p.rateh}`));
+	logDebug(`Download of file ${targetFilename} started.`);
 	
-	const stream = Fs.createWriteStream(filename);
+	const stream = Fs.createWriteStream(targetFilename);
 	await new Promise((resolve, reject) => {
 		fileResponse.body.pipe(stream);
 		fileResponse.body.on('error', reject);
@@ -279,7 +282,7 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		stream.on('error', reject);
 	})
 	.then(() => {
-		logSuccess(`Download succeeded: ${filename}`);
+		logSuccess(`Download succeeded: ${targetFilename}`);
 		stateMediaItem.downloaded_at = new Date();
 		if (!!stateMediaItem.redownload_requested_at) {
 			stateMediaItem.redownload_requested_at = null;
@@ -287,7 +290,7 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		saveState(state);
 	})
 	.catch(err => {
-		logError(`Download of file ${filename} failed.`, err);
+		logError(`Download of file ${targetFilename} failed.`, err);
 		stateMediaItem.download_failed_at = new Date();
 		saveState(state);
 	});
@@ -297,7 +300,7 @@ let stateChangedInPostDownloadFileSizeCheck = false;
 for (let i = 0; i < state.media.length; i++) {
 	const mediaStateItem = state.media[i];
 	
-	if (!mediaStateItem.filename) {
+	if (!mediaStateItem.targetFilename) {
 		// Can't find a thing with no filename.
 		continue;
 	} else if (!!mediaStateItem.disappeared_at) {
@@ -305,14 +308,14 @@ for (let i = 0; i < state.media.length; i++) {
 		continue;
 	}
 	
-	const stat = Fs.statSync(mediaStateItem.filename, { throwIfNoEntry: false });
+	const stat = Fs.statSync(mediaStateItem.targetFilename, { throwIfNoEntry: false });
 	if (!stat) {
 		// File has since been moved out of the current working directory.
 		continue;
 	} else if (mediaStateItem.file_size !== stat.size) {
 		const onDiskMib = (stat.size / 1024.0 / 1024.0).toFixed(2);
 		const inCloudMib = (mediaStateItem.file_size / 1024.0 / 1024.0).toFixed(2);
-		logWarn(`GoPro Cloud reports size of ${inCloudMib}MiB for ${mediaStateItem.filename}, but file on disk is ${onDiskMib}MiB. Run the application with --redownload command line flag to re-download it.`);
+		logWarn(`GoPro Cloud reports size of ${inCloudMib}MiB for ${mediaStateItem.targetFilename}, but file on disk is ${onDiskMib}MiB. Run the application with --redownload command line flag to re-download it.`);
 		mediaStateItem.redownload_requested_at = new Date();
 		stateChangedInPostDownloadFileSizeCheck = true;
 	}
