@@ -6,11 +6,11 @@ const fetch = FetchCookie(NodeFetch);
 
 const findCsrfToken = html => [...html.matchAll(/meta\s+name=\"csrf\-token\"\s+content=\"?([^\"\/>]+)\"?\/?>/gi)][0][1];
 
-export const initLoginRoutine = () => {
+export const initLoginRoutine = async () => {
 	logInfo('Please provide your GoPro Cloud credentials');
 	console.log('   ===========================================');
-	const email = process.env.GOPRO_ACCOUNT_EMAIL || prompt('E-mail address: ');
-	const password = process.env.GOPRO_ACCOUNT_PASSWORD || prompt('Password: ');
+	const email = process.env.GOPRO_ACCOUNT_EMAIL || await prompt('E-mail address: ');
+	const password = process.env.GOPRO_ACCOUNT_PASSWORD || await prompt('Password: ');
 	console.log('   ===========================================');
 	
 	if (!email || !password) {
@@ -19,7 +19,7 @@ export const initLoginRoutine = () => {
 	}
 	
 	logInfo('Finding CSRF token...');
-	return fetch(logUrl(LOGIN_URL))
+	return await fetch(logUrl(LOGIN_URL))
 		.then(checkHttpStatus)
 		.then(r => r.text())
 		.then(findCsrfToken)
