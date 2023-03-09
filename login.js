@@ -10,7 +10,7 @@ export const initLoginRoutine = async () => {
 	logInfo('Please provide your GoPro Cloud credentials');
 	console.log('   ===========================================');
 	const email = process.env.GOPRO_ACCOUNT_EMAIL || await prompt('E-mail address: ');
-	const password = process.env.GOPRO_ACCOUNT_PASSWORD || await prompt('Password: ');
+	const password = process.env.GOPRO_ACCOUNT_PASSWORD || await prompt('Password: ', 'password');
 	console.log('   ===========================================');
 	
 	if (!email || !password) {
