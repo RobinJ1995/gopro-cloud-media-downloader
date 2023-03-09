@@ -13,8 +13,8 @@
 	"dependencies": {
 		"bluebird": "^3.7.2",
 		"colors": "^1.4.0",
-		"fetch-cookie": "^0.11.0",
-		"node-fetch": "^2.6.1",
+		"fetch-cookie": "^2.1.0",
+		"node-fetch": "^3.3.0",
 		"node-fetch-progress": "^1.0.2",
 		"prompts": "^2.4.2",
 		"recurse": "^3.0.2"
