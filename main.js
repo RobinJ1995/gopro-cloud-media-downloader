@@ -255,7 +255,7 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 	
 	let highestQuality = files[0];
 	for (let i = 0; i < variations.length; i++) {
-		const variation = variations[0];
+		const variation = variations[i];
 		
 		if (variation?.label === 'source') {
 			logDebug(`Variation ${i} has "source" label. Marking as highest quality file.`);
