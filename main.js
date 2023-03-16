@@ -44,24 +44,25 @@ const {
 logInfo(`Found ${totalPages} pages with ${totalItems} media items.`);
 
 const mediaPageUrls = Array(totalPages).fill(true).map((x, pageNum) => getMediaPageUrl(pageNum));
-const mediaPageRetrievalPromises = mediaPageUrls.map((url, i) => {
+const fetchMediaLibraryPage = async (url, i) => {
 	logDebug(`Fetching media library page number ${i}...`);
 	return autoRetry(fetch(logUrl(url), {
 		headers: getHeaders()
 	}).then(httpCheckParse))
-		.then(r => {
-			const media = r._embedded.media;
-			const errors = r._embedded.errors;
-			
-			if ((errors || []).length) {
-				logError(errors);
-				throw new Error(errors);
-			}
-			
-			logDebug(`Retrieved media library page number ${i} with ${media.length} items.`);
-			return media;
-		})
-});
+	.then(r => {
+		const media = r._embedded.media;
+		const errors = r._embedded.errors;
+
+		if ((errors || []).length) {
+			logError(errors);
+			throw new Error(errors);
+		}
+
+		logDebug(`Retrieved media library page number ${i} with ${media.length} items.`);
+		return media;
+	});
+};
+const mediaPageRetrievalPromises = mediaPageUrls.map((url, i) => fetchMediaLibraryPage(url, i));
 const mediaPages = await Promise.all(mediaPageRetrievalPromises);
 const cloudMediaItems = mediaPages.reduce((acc, cur) => [...cur, ...acc], []);
 logInfo(`Retrieved metadata about ${cloudMediaItems.length} media library items from GoPro.`);
