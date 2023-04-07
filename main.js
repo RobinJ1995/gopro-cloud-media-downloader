@@ -275,6 +275,7 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		continue;
 	}
 	logInfo(`Downloading file: ${targetFilename}`);
+    try {
 	const fileResponse = await autoRetry(fetch(logUrl(highestQuality.url)).then(checkHttpStatus));
 	const downloadProgress = new NodeFetchProgress(fileResponse, { throttle: 2500 });
 	downloadProgress.on('progress', p => console.log(`🧮 ${i}/${itemsToDownload.length} 🌐 ${targetFilename} 📁 ${p.doneh}/${p.totalh} ⏬ ${p.rateh}`));
@@ -300,6 +301,10 @@ for (let i = 0; i < itemsToDownload.length; i++) {
 		stateMediaItem.download_failed_at = new Date();
 		saveState(state);
 	});
+    } catch (err) {
+        logError(`Fetch error occured.`, err)
+        saveState(state);
+    }
 }
 
 let stateChangedInPostDownloadFileSizeCheck = false;
