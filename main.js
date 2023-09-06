@@ -3,7 +3,7 @@ import NodeFetchProgress from 'node-fetch-progress';
 import FetchCookie from 'fetch-cookie';
 const fetch = FetchCookie(NodeFetch);
 
-import { checkHttpStatus, httpCheckParse, pluralise, stripFields, getMediaPageUrl, getDownloadUrl, autoRetry } from './utils.js';
+import { checkHttpStatus, httpCheckParse, pluralise, stripFields, getMediaPageUrl, getDownloadUrl, autoRetry, DEFAULT_HEADERS } from './utils.js';
 import { welcome, logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt, promptYesOrNo } from './logging.js';
 import Fs from 'fs';
 import Path from 'path';
@@ -26,9 +26,8 @@ saveState(state);
 
 const accessToken = await initLoginRoutine();
 const getHeaders = () => ({
+	...DEFAULT_HEADERS,
 	'Authorization': `Bearer ${accessToken}`,
-	'Accept': 'application/vnd.gopro.jk.media+json; version=2.0.0',
-	'Content-Type': 'application/json'
 });
 
 logInfo('Retrieving GoPro media library...');
