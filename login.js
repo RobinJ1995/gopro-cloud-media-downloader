@@ -1,5 +1,5 @@
 import { logSuccess, logInfo, logWarn, logError, logDebug, logUrl, prompt } from './logging.js';
-import { checkHttpStatus, httpCheckParse, LOGIN_URL } from './utils.js';
+import { checkHttpStatus, httpCheckParse, LOGIN_URL, DEFAULT_HEADERS_FOR_WEB_REQUESTS } from './utils.js';
 import NodeFetch from 'node-fetch';
 import FetchCookie from 'fetch-cookie';
 
@@ -7,7 +7,31 @@ import FetchCookie from 'fetch-cookie';
 const fetch = FetchCookie(NodeFetch);
 
 // Function to find the CSRF token in the HTML content
-const findCsrfToken = html => [...html.matchAll(/meta\s+name=\"csrf\-token\"\s+content=\"?([^\"\/>]+)\"?\/?>/gi)][0][1];
+const findCsrfTokenInPageHtml = html => [...html.matchAll(/meta\s+name=\"csrf\-token\"\s+content=\"?([^\"\/>]+)\"?\/?>/gi)][0][1];
+// Function to load login page and extract CSRF token from it
+const obtainCsrfToken = async () => {
+	try {
+		logInfo('Finding CSRF token...');
+		const csrfToken = await fetch(logUrl(LOGIN_URL), {
+			headers: DEFAULT_HEADERS_FOR_WEB_REQUESTS
+		})
+			.then(checkHttpStatus)
+			.then(r => r.text())
+			.then(findCsrfTokenInPageHtml);
+
+		logDebug(`CSRF token: ${csrfToken}`);
+
+		return csrfToken;
+	} catch (ex) {
+		logError('Failed to find CSRF token.');
+
+		if (ex?.message?.startsWith('403 HTTP Forbidden')) {
+			logWarn('It looks like GoPro has detected that you are using an automated script to download your media library, and is blocking you from doing so.');
+		}
+
+		throw ex;
+	}
+}
 
 // Asynchronous function to initialize the login routine
 export const initLoginRoutine = async () => {
@@ -25,20 +49,14 @@ export const initLoginRoutine = async () => {
 	}
 
 	// Step 1: Fetch the login page and get the CSRF token
-	logInfo('Finding CSRF token...');
-	const csrfToken = await fetch(logUrl(LOGIN_URL))
-		.then(checkHttpStatus)
-		.then(r => r.text())
-		.then(findCsrfToken);
-
-	logDebug(`CSRF token: ${csrfToken}`);
+	const csrfToken = await obtainCsrfToken();
 
 	// Step 2: Send a login request with the email, password, and CSRF token
 	logInfo('Logging in...');
 	const loginResponse = await fetch(logUrl(LOGIN_URL), {
 		method: 'POST',
 		headers: {
-			'Content-Type': 'application/json',
+			...DEFAULT_HEADERS_FOR_WEB_REQUESTS,
 			'X-CSRF-Token': csrfToken
 		},
 		body: JSON.stringify({
